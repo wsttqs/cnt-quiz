@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>动态 Quiz - Excel 字段关系图 v8</title>
+<style>
+:root {
+  --bg: #0f1729;  --panel: #18233d;  --panel-2: #1f2c47;
+  --border: #2d3a5a;  --border-soft: #243149;
+  --text: #f1f5fb;  --text-dim: #a3b1cc;  --text-mute: #6b7793;
+  --accent: #38bdf8;  --warm: #fb923c;  --green: #34d399;
+  --pink: #f472b6;  --yellow: #fbbf24;  --red: #f87171;  --purple: #a78bfa;
+  --mono: "JetBrains Mono", "SF Mono", Consolas, monospace;
+}
+* { box-sizing: border-box; }
+html, body { background: var(--bg); color: var(--text); margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  padding: 36px 32px;
+  line-height: 1.6;
+  font-size: 14px;
+}
+.viz { max-width: 1080px; margin: 0 auto; }
+
+.head { text-align: center; margin-bottom: 28px; }
+.title { font-size: 26px; font-weight: 700; letter-spacing: 0.5px; }
+.subtitle { color: var(--text-dim); font-size: 14px; margin-top: 8px; }
+
+.sec {
+  margin-top: 36px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+}
+.sec-num {
+  font-size: 12px; font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(167,139,250,0.15);
+  color: var(--purple);
+}
+.sec-title { font-size: 18px; font-weight: 700; }
+.sec-desc { color: var(--text-dim); font-size: 13px; }
+
+/* ====== ER 画布 ====== */
+.er-canvas {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px;
+  position: relative;
+}
+.er-svg-wrap {
+  position: relative;
+  background:
+    linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+  background-size: 40px 40px;
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.er-legend {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-soft);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 22px;
+  justify-content: center;
+}
+.er-legend-item {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; color: var(--text-dim);
+}
+.er-legend-line { width: 30px; height: 3px; border-radius: 2px; position: relative; }
+.er-legend-line::after {
+  content: "";
+  position: absolute;
+  right: -2px; top: 50%;
+  transform: translateY(-50%);
+  border: 5px solid transparent;
+  border-left-color: inherit;
+}
+.er-legend-line.fk-strong { background: var(--accent); }
+.er-legend-line.fk-strong::after { border-left-color: var(--accent); }
+.er-legend-line.fk-soft { background: var(--pink); }
+.er-legend-line.fk-soft::after { border-left-color: var(--pink); }
+.er-legend-line.fk-json { background: var(--red); }
+.er-legend-line.fk-json::after { border-left-color: var(--red); }
+
+/* ====== 字段卡片（图形化） ====== */
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 14px;
+}
+.field-card {
+  background: var(--panel);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.fc-head {
+  padding: 10px 12px;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.fc-head .ic { font-size: 14px; }
+.fc-head .ct { margin-left: auto; font-size: 10px; color: var(--text-mute); font-weight: 400; }
+
+.fc-body { padding: 6px 0; flex: 1; }
+.fc-field {
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.fc-field:last-child { border-bottom: none; }
+.fc-field .col { color: var(--text-mute); font-size: 10px; min-width: 16px; }
+.fc-field .nm { color: var(--text); flex: 1; }
+.fc-field .tp { color: var(--text-dim); font-size: 10px; }
+.fc-field .rq { font-size: 10px; }
+.fc-field.pk .nm { color: var(--yellow); font-weight: 600; }
+.fc-field.fk .nm { color: var(--accent); }
+
+.fc-foot {
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.02);
+  font-size: 11px;
+  color: var(--text-mute);
+  border-top: 1px solid var(--border-soft);
+}
+
+.fc-structure  .fc-head { background: rgba(167,139,250,0.12); color: var(--purple); }
+.fc-questions  .fc-head { background: rgba(251,191,36,0.12); color: var(--yellow); }
+.fc-optiontags .fc-head { background: rgba(244,114,182,0.12); color: var(--pink); }
+.fc-routing    .fc-head { background: rgba(56,189,248,0.12); color: var(--accent); }
+.fc-result     .fc-head { background: rgba(248,113,113,0.12); color: var(--red); }
+
+/* ====== 校验汇总 ====== */
+.rules-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.rule-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+.rule-card.full { grid-column: span 2; }
+.rule-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.rule-icon { font-size: 16px; }
+.rule-list {
+  font-size: 12px;
+  color: var(--text-dim);
+  padding-left: 0;
+  list-style: none;
+  margin: 0;
+}
+.rule-list li {
+  padding: 4px 0 4px 18px;
+  position: relative;
+  line-height: 1.5;
+}
+.rule-list li::before {
+  content: "•";
+  position: absolute;
+  left: 6px;
+  color: var(--accent);
+}
+.rule-list li strong { color: var(--text); font-family: var(--mono); font-size: 12px; }
+.rule-list li code {
+  font-family: var(--mono);
+  background: rgba(255,255,255,0.06);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--text);
+}
+
+.file-rule {
+  background: linear-gradient(135deg, rgba(167,139,250,0.06), var(--panel));
+  border: 1px solid rgba(167,139,250,0.3);
+}
+.file-rule .rule-title { color: var(--purple); }
+.default-rule {
+  background: linear-gradient(135deg, rgba(251,191,36,0.06), var(--panel));
+  border: 1px solid rgba(251,191,36,0.3);
+}
+.default-rule .rule-title { color: var(--yellow); }
+
+.legend {
+  margin-top: 28px;
+  padding: 12px 18px;
+  background: var(--panel);
+  border-radius: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-size: 12px;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+}
+.legend-item { display: flex; align-items: center; gap: 6px; }
+</style>
+</head>
+<body>
+<div class="viz">
+
+  <div class="head">
+    <div class="title">📊 动态 Quiz - Excel 配置字段关系图</div>
+    <div class="subtitle">5 Sheet · 6 PK · 7 跨表引用 · v1.4</div>
+  </div>
+
+  <!-- ============ Section 1: ER 关系图 ============ -->
+  <div class="sec">
+    <span class="sec-num">Section 1</span>
+    <span class="sec-title">跨表关系图</span>
+    <span class="sec-desc">—— 节点 = Sheet，边 = FK 引用，箭头指向"被引用方"</span>
+  </div>
+
+  <div class="er-canvas">
+    <div class="er-svg-wrap">
+      <svg viewBox="0 0 1000 780" xmlns="http://www.w3.org/2000/svg" style="width:100%; height:auto; display:block;">
+
+        <!-- ========== 连线层（箭头） ========== -->
+        <defs>
+          <!-- 箭头定义 -->
+          <marker id="arr-purple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#a78bfa"/>
+          </marker>
+          <marker id="arr-yellow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#fbbf24"/>
+          </marker>
+          <marker id="arr-pink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#f472b6"/>
+          </marker>
+          <marker id="arr-cyan" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#38bdf8"/>
+          </marker>
+          <marker id="arr-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#f87171"/>
+          </marker>
+
+          <!-- 发光滤镜 -->
+          <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="3" result="b"/>
+            <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+
+        <!-- 连线（背景虚线） -->
+        <!-- Questions.group_id → Structure.group_id -->
+        <line x1="700" y1="115" x2="500" y2="370" stroke="#38bdf8" stroke-width="2" marker-end="url(#arr-cyan)"/>
+        <!-- OptionTags.question_id → Questions.question_id -->
+        <line x1="700" y1="600" x2="700" y2="190" stroke="#38bdf8" stroke-width="2" marker-end="url(#arr-cyan)"/>
+        <!-- OptionTags.layer_id → Structure.layer_id -->
+        <line x1="700" y1="660" x2="450" y2="390" stroke="#38bdf8" stroke-width="2" marker-end="url(#arr-cyan)"/>
+        <!-- Routing.from_layer_id → Structure.layer_id -->
+        <line x1="300" y1="115" x2="450" y2="350" stroke="#38bdf8" stroke-width="2" marker-end="url(#arr-cyan)"/>
+        <!-- Routing.target_group_id → Structure.group_id -->
+        <line x1="320" y1="190" x2="500" y2="430" stroke="#38bdf8" stroke-width="2" marker-end="url(#arr-cyan)"/>
+        <!-- Routing.tag → OptionTags.tag（业务命名匹配，虚线粉色） -->
+        <line x1="380" y1="155" x2="640" y2="600" stroke="#f472b6" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#arr-pink)"/>
+        <!-- ResultPages.condition_expr → Structure.layer_id（JSON 引用，点线红色） -->
+        <line x1="300" y1="660" x2="450" y2="410" stroke="#f87171" stroke-width="2" stroke-dasharray="2,3" marker-end="url(#arr-red)"/>
+
+        <!-- 连线 label（边上的小标签，标出引用字段名） -->
+        <!-- Questions → Structure (group_id) -->
+        <rect x="555" y="225" width="68" height="18" rx="4" fill="#0f1729" stroke="#38bdf8" stroke-width="1"/>
+        <text x="589" y="237" text-anchor="middle" fill="#38bdf8" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600">group_id</text>
+
+        <!-- OptionTags → Questions (question_id) -->
+        <rect x="708" y="385" width="84" height="18" rx="4" fill="#0f1729" stroke="#38bdf8" stroke-width="1"/>
+        <text x="750" y="397" text-anchor="middle" fill="#38bdf8" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600">question_id</text>
+
+        <!-- OptionTags → Structure (layer_id) -->
+        <rect x="555" y="495" width="68" height="18" rx="4" fill="#0f1729" stroke="#38bdf8" stroke-width="1"/>
+        <text x="589" y="507" text-anchor="middle" fill="#38bdf8" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600">layer_id</text>
+
+        <!-- Routing → Structure (from_layer_id) -->
+        <rect x="345" y="220" width="92" height="18" rx="4" fill="#0f1729" stroke="#38bdf8" stroke-width="1"/>
+        <text x="391" y="232" text-anchor="middle" fill="#38bdf8" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600">from_layer_id</text>
+
+        <!-- Routing → Structure (target_group_id) -->
+        <rect x="385" y="295" width="100" height="18" rx="4" fill="#0f1729" stroke="#38bdf8" stroke-width="1"/>
+        <text x="435" y="307" text-anchor="middle" fill="#38bdf8" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600">target_group_id</text>
+
+        <!-- Routing → OptionTags (tag, 业务命名) -->
+        <rect x="495" y="395" width="40" height="18" rx="4" fill="#0f1729" stroke="#f472b6" stroke-width="1"/>
+        <text x="515" y="407" text-anchor="middle" fill="#f472b6" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600">tag</text>
+
+        <!-- ResultPages → Structure (condition_expr) -->
+        <rect x="345" y="540" width="100" height="18" rx="4" fill="#0f1729" stroke="#f87171" stroke-width="1"/>
+        <text x="395" y="552" text-anchor="middle" fill="#f87171" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600">condition_expr</text>
+
+        <!-- ========== 节点 ========== -->
+
+        <!-- Structure (中心枢纽) -->
+        <g>
+          <rect x="380" y="350" width="200" height="110" rx="12" fill="#18233d" stroke="#a78bfa" stroke-width="2.5" filter="url(#glow)"/>
+          <rect x="380" y="350" width="200" height="32" rx="12" fill="#a78bfa"/>
+          <rect x="380" y="370" width="200" height="12" fill="#a78bfa"/>
+          <text x="480" y="372" text-anchor="middle" fill="#0f1729" font-family="JetBrains Mono, monospace" font-size="14" font-weight="700">🗂  Structure</text>
+          <text x="395" y="402" fill="#a3b1cc" font-size="11" font-weight="600">⭐ 枢纽表 · 5 字段</text>
+          <text x="395" y="420" fill="#f1f5fb" font-family="JetBrains Mono, monospace" font-size="11">🔑 layer_id</text>
+          <text x="395" y="436" fill="#f1f5fb" font-family="JetBrains Mono, monospace" font-size="11">🔑 group_id</text>
+          <text x="395" y="452" fill="#a3b1cc" font-family="JetBrains Mono, monospace" font-size="11">layer_name · layer_default_tag</text>
+        </g>
+
+        <!-- Questions (右上) -->
+        <g>
+          <rect x="600" y="110" width="200" height="80" rx="12" fill="#18233d" stroke="#fbbf24" stroke-width="2"/>
+          <rect x="600" y="110" width="200" height="28" rx="12" fill="#fbbf24"/>
+          <rect x="600" y="128" width="200" height="10" fill="#fbbf24"/>
+          <text x="700" y="130" text-anchor="middle" fill="#0f1729" font-family="JetBrains Mono, monospace" font-size="13" font-weight="700">📚  Questions</text>
+          <text x="615" y="158" fill="#a3b1cc" font-size="11">题目 · 7 字段</text>
+          <text x="615" y="175" fill="#f1f5fb" font-family="JetBrains Mono, monospace" font-size="11">🔑 question_id · 🔗 group_id</text>
+        </g>
+
+        <!-- OptionTags (右下) -->
+        <g>
+          <rect x="600" y="580" width="200" height="100" rx="12" fill="#18233d" stroke="#f472b6" stroke-width="2"/>
+          <rect x="600" y="580" width="200" height="28" rx="12" fill="#f472b6"/>
+          <rect x="600" y="598" width="200" height="10" fill="#f472b6"/>
+          <text x="700" y="600" text-anchor="middle" fill="#0f1729" font-family="JetBrains Mono, monospace" font-size="13" font-weight="700">🏷  OptionTags</text>
+          <text x="615" y="628" fill="#a3b1cc" font-size="11">选项→标签 · 6 字段</text>
+          <text x="615" y="645" fill="#f1f5fb" font-family="JetBrains Mono, monospace" font-size="10">🔗 question_id · option_index</text>
+          <text x="615" y="660" fill="#f1f5fb" font-family="JetBrains Mono, monospace" font-size="10">tag · 🔗 layer_id</text>
+          <text x="615" y="675" fill="#a3b1cc" font-family="JetBrains Mono, monospace" font-size="10">score · priority</text>
+        </g>
+
+        <!-- Routing (左上) -->
+        <g>
+          <rect x="200" y="110" width="200" height="80" rx="12" fill="#18233d" stroke="#38bdf8" stroke-width="2"/>
+          <rect x="200" y="110" width="200" height="28" rx="12" fill="#38bdf8"/>
+          <rect x="200" y="128" width="200" height="10" fill="#38bdf8"/>
+          <text x="300" y="130" text-anchor="middle" fill="#0f1729" font-family="JetBrains Mono, monospace" font-size="13" font-weight="700">🔀  Routing</text>
+          <text x="215" y="158" fill="#a3b1cc" font-size="11">层间路由 · 4 字段</text>
+          <text x="215" y="175" fill="#f1f5fb" font-family="JetBrains Mono, monospace" font-size="10">🔗 from_layer_id · tag · bucket</text>
+          <text x="215" y="188" fill="#f1f5fb" font-family="JetBrains Mono, monospace" font-size="10">🔗 target_group_id</text>
+        </g>
+
+        <!-- ResultPages (左下) -->
+        <g>
+          <rect x="200" y="580" width="200" height="100" rx="12" fill="#18233d" stroke="#f87171" stroke-width="2"/>
+          <rect x="200" y="580" width="200" height="28" rx="12" fill="#f87171"/>
+          <rect x="200" y="598" width="200" height="10" fill="#f87171"/>
+          <text x="300" y="600" text-anchor="middle" fill="#0f1729" font-family="JetBrains Mono, monospace" font-size="13" font-weight="700">🎯  ResultPages</text>
+          <text x="215" y="628" fill="#a3b1cc" font-size="11">结果判定+渲染 · 6 字段</text>
+          <text x="215" y="645" fill="#f1f5fb" font-family="JetBrains Mono, monospace" font-size="10">🔑 result_page_id</text>
+          <text x="215" y="660" fill="#f1f5fb" font-family="JetBrains Mono, monospace" font-size="10">condition_expr · title · content</text>
+          <text x="215" y="675" fill="#a3b1cc" font-family="JetBrains Mono, monospace" font-size="10">img_path · is_default</text>
+        </g>
+
+        <!-- 流向说明 -->
+        <text x="500" y="60" text-anchor="middle" fill="#6b7793" font-size="11">💡 箭头方向：FK 引用方 ──→ 被引用方</text>
+        <text x="500" y="755" text-anchor="middle" fill="#6b7793" font-size="11">所有引用最终都汇聚到 Structure（枢纽表）</text>
+
+      </svg>
+    </div>
+
+    <div class="er-legend">
+      <div class="er-legend-item">
+        <span class="er-legend-line fk-strong"></span>
+        <span>强 FK（必须存在于目标表）· 5 条</span>
+      </div>
+      <div class="er-legend-item" style="position:relative;">
+        <span style="width:30px; height:0; border-top:2px dashed var(--pink); display:inline-block;"></span>
+        <span>业务命名匹配 · 1 条</span>
+      </div>
+      <div class="er-legend-item" style="position:relative;">
+        <span style="width:30px; height:0; border-top:2px dotted var(--red); display:inline-block;"></span>
+        <span>JSON 内引用 · 1 条</span>
+      </div>
+      <div class="er-legend-item">
+        <span style="color: var(--yellow); font-weight:700;">🔑</span>
+        <span>主键</span>
+      </div>
+      <div class="er-legend-item">
+        <span style="color: var(--accent); font-weight:700;">🔗</span>
+        <span>外键</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ Section 2: 字段详情（卡片式） ============ -->
+  <div class="sec">
+    <span class="sec-num">Section 2</span>
+    <span class="sec-title">字段详情</span>
+    <span class="sec-desc">—— 每张表一张卡片，字段逐行列出（列号 / 名 / 类型 / 必填）</span>
+  </div>
+
+  <div class="field-grid">
+
+    <div class="field-card fc-structure">
+      <div class="fc-head">
+        <span class="ic">🗂</span>
+        <span>Structure</span>
+        <span class="ct">5 字段</span>
+      </div>
+      <div class="fc-body">
+        <div class="fc-field pk"><span class="col">A</span><span class="nm">layer_id</span><span class="tp">string</span><span class="rq" style="color:var(--green)">●</span></div>
+        <div class="fc-field"><span class="col">B</span><span class="nm">layer_name</span><span class="tp">string</span><span class="rq" style="color:var(--green)">●</span></div>
+        <div class="fc-field"><span class="col">C</span><span class="nm">layer_default_tag</span><span class="tp">string</span><span class="rq" style="color:var(--green)">●</span></div>
+        <div class="fc-field pk"><span class="col">D</span><span class="nm">group_id</span><span class="tp">string</span><span class="rq" style="color:var(--green)">●</span></div>
+        <div class="fc-field"><span class="col">E</span><span class="nm">group_name</span><span class="tp">string</span><span class="rq" style="color:var(--text-mute)">○</span></div>
+      </div>
+      <div class="fc-foot">枢纽表 · 第 1 个 layer_id = 入口层</div>
+    </div>
+
+    <div class="field-card fc-questions">
+      <div class="fc-head">
+        <span class="ic">📚</span>
+        <span>Questions</span>
+        <span class="ct">7 字段</span>
+      </div>
+      <div class="fc-body">
+        <div class="fc-field pk"><span class="col">A</span><span class="nm">question_id</span><span class="tp">string</span><span class="rq" style="color:var(--green)">●</span></div>
+        <div class="fc-field fk"><span class="col">B</span><span class="nm">group_id</span><span class="tp">string</span><span class="rq" style="color:var(--green)">●</span></div>
+        <div class="fc-field"><span class="col">C</span><span class="nm">sub_title</span><span class="tp">string</span><span class="rq" style="color:var(--green)">●</span></div>
+        <div class="fc-field"><span class="col">D</span><span class="nm">question_options</span><span class="tp">string</span><span class="rq" style="color:var(--green)">●</span></div>
+        <div class="fc-field"><span class="col">E</span><span class="nm">answer</span><span class="tp">string</span><span class="rq" style="color:var(--text-mute)">○</span></div>
+        <div class="fc-field"><span class="col">F</span><span class="nm">correct_answer</span><span class="tp">int</span><span class="rq" style="color:var(--text-mute)">○</span></div>
+        <div class="fc-field"><span class="col">G</span><span class="nm">content</span><span class="tp">TEXT</span><span class="rq" style="color:var(--text-mute)">○</span></div>
+      </div>
+      <div class="fc-foot">第 2 行 content = article 介绍</div>
+    </div>
+
+    <div class="field-card fc-optiontags">
+      <div class="fc-head">
+        <span class="ic">🏷</span>
+        <span>OptionTags</span>
+        <span class="ct">6 字段</span>
+      </div>
+      <div class="fc-body">
+        <div class="fc-field fk"><span class="col">A</span><span class="nm">question_id</span><span class="tp">string</span><span class="rq" style="color:var(--green)">●</span></div>
+        <div class="fc-field"><span class="col">B</span><span class="nm">option_index</span><span class="tp">int</span><span class="rq" style="color:var(--green)">●</span></div>
+        <div class="fc-field"><span class="col">C</span><span class="nm">tag</span><span class="tp">string</span><span class="rq" style="color:var(--green)">●</span></div>
+        <div class="fc-field fk"><span class="col">D</span><span class="nm">layer_id</span><span class="tp">string</span><span class="rq" style="color:var(--green)">●</span></div>
+        <div class="fc-field"><span class="col">E</span><span class="nm">score</span><span class="tp">int</span><span class="rq" style="color:var(--green)">●</span></div>
+        <div class="fc-field"><span class="col">F</span><span class="nm">priority</span><span class="tp">int</span><span class="rq" style="color:var(--green)">●</span></div>
+      </div>
+      <div class="fc-foot">无记录 = 公共题 · 0-based index</div>
+    </div>
+
+    <div class="field-card fc-routing">
+      <div class="fc-head">
+        <span class="ic">🔀</span>
+        <span>Routing</span>
+        <span class="ct">4 字段</span>
+      </div>
+      <div class="fc-body">
+        <div class="fc-field fk"><span class="col">A</span><span class="nm">from_layer_id</span><span class="tp">string</span><span class="rq" style="color:var(--green)">●</span></div>
+        <div class="fc-field"><span class="col">B</span><span class="nm">tag</span><span class="tp">string</span><span class="rq" style="color:var(--green)">●</span></div>
+        <div class="fc-field"><span class="col">C</span><span class="nm">bucket</span><span class="tp">string</span><span class="rq" style="color:var(--green)">●</span></div>
+        <div class="fc-field fk"><span class="col">D</span><span class="nm">target_group_id</span><span class="tp">string</span><span class="rq" style="color:var(--green)">●</span></div>
+      </div>
+      <div class="fc-foot">首条命中 · (DEFAULT)+(ANY) 兜底</div>
+    </div>
+
+    <div class="field-card fc-result">
+      <div class="fc-head">
+        <span class="ic">🎯</span>
+        <span>ResultPages</span>
+        <span class="ct">6 字段</span>
+      </div>
+      <div class="fc-body">
+        <div class="fc-field pk"><span class="col">A</span><span class="nm">result_page_id</span><span class="tp">string</span><span class="rq" style="color:var(--green)">●</span></div>
+        <div class="fc-field"><span class="col">B</span><span class="nm">condition_expr</span><span class="tp">JSON</span><span class="rq" style="color:var(--green)">●</span></div>
+        <div class="fc-field"><span class="col">C</span><span class="nm">title</span><span class="tp">string</span><span class="rq" style="color:var(--green)">●</span></div>
+        <div class="fc-field"><span class="col">D</span><span class="nm">content</span><span class="tp">TEXT</span><span class="rq" style="color:var(--green)">●</span></div>
+        <div class="fc-field"><span class="col">E</span><span class="nm">img_path</span><span class="tp">string</span><span class="rq" style="color:var(--text-mute)">○</span></div>
+        <div class="fc-field"><span class="col">F</span><span class="nm">is_default</span><span class="tp">bool</span><span class="rq" style="color:var(--green)">●</span></div>
+      </div>
+      <div class="fc-foot">首条命中 · is_default 恰 1 个 true</div>
+    </div>
+
+  </div>
+
+  <!-- ============ Section 3: 校验规则 ============ -->
+  <div class="sec">
+    <span class="sec-num">Section 3</span>
+    <span class="sec-title">文件约定 &amp; 校验规则</span>
+    <span class="sec-desc">—— 5 个必配约束</span>
+  </div>
+
+  <div class="rules-grid">
+
+    <div class="rule-card file-rule full">
+      <div class="rule-title"><span class="rule-icon">📄</span>文件名约定</div>
+      <ul class="rule-list">
+        <li><strong>文章 ID</strong> = 文件名去掉 <code>.xlsx</code> 后缀，全局唯一</li>
+        <li><strong>文章标题</strong> = 默认与 ID 一致，CMS 后台可改名</li>
+        <li><strong>状态</strong>（draft/published）= 由 CMS 控制，Excel 不维护</li>
+      </ul>
+    </div>
+
+    <div class="rule-card">
+      <div class="rule-title"><span class="rule-icon">🚪</span>入口层</div>
+      <ul class="rule-list">
+        <li>第一个出现的 <code>layer_id</code> = 入口层</li>
+        <li>入口层必须<strong>恰好 1 个 group</strong></li>
+        <li>入口层<strong>不应该</strong>有 Routing 规则</li>
+      </ul>
+    </div>
+
+    <div class="rule-card default-rule">
+      <div class="rule-title"><span class="rule-icon">🛟</span>兜底规则</div>
+      <ul class="rule-list">
+        <li>每非最后一层配 1 条 <code>(DEFAULT)+(ANY)</code></li>
+        <li>ResultPages <strong>恰 1 行</strong> <code>is_default=true</code></li>
+        <li>每非入口层必须填 <code>layer_default_tag</code></li>
+      </ul>
+    </div>
+
+    <div class="rule-card">
+      <div class="rule-title"><span class="rule-icon">📑</span>行序约定</div>
+      <ul class="rule-list">
+        <li><strong>Structure</strong> 行序 = 同层多组的组顺序</li>
+        <li><strong>Questions</strong> 行序 = 同组多题的题顺序</li>
+        <li><strong>Routing/ResultPages</strong> 行序 = 优先级（首条命中）</li>
+      </ul>
+    </div>
+
+    <div class="rule-card">
+      <div class="rule-title"><span class="rule-icon">🔗</span>跨表 FK 校验</div>
+      <ul class="rule-list">
+        <li><code>Questions.group_id</code> 必须存在于 Structure</li>
+        <li><code>OptionTags.question_id</code> 必须存在于 Questions</li>
+        <li><code>OptionTags.layer_id</code> 必须存在于 Structure</li>
+        <li><code>Routing</code> 两个 FK 必须存在于 Structure</li>
+        <li><code>ResultPages.condition_expr</code> JSON 内引用必须存在</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <div class="legend">
+    <span style="color: var(--yellow); font-weight:700;">🔑</span><span>主键</span>
+    <span style="color: var(--accent); font-weight:700;">🔗</span><span>外键</span>
+    <span style="color: var(--green); font-weight:700;">●</span><span>必填</span>
+    <span style="color: var(--text-mute); font-weight:700;">○</span><span>选填</span>
+    <span style="color: var(--purple);">🟣</span><span>Structure（枢纽）</span>
+    <span style="color: var(--yellow);">🟡</span><span>Questions</span>
+    <span style="color: var(--pink);">🩷</span><span>OptionTags</span>
+    <span style="color: var(--accent);">🔵</span><span>Routing</span>
+    <span style="color: var(--red);">🔴</span><span>ResultPages</span>
+  </div>
+
+</div>
+</body>
+</html>

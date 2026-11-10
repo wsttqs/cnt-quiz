@@ -1,0 +1,57 @@
+{
+  "sheets": [
+    {
+      "name": "Structure",
+      "headers": ["layer_id", "layer_name", "group_id", "group_name", "question_id", "sub_title", "question_options", "answer", "correct_answer", "content"],
+      "rows": [
+        ["", "", "", "", "", "", "", "", "", "宠物清洁困扰的朋友，欢迎来到我们的方案推荐 quiz。花 1 分钟回答几道题，我们会根据你的具体情况推荐最合适的清洁方案。"],
+        ["L1", "入口层", "G1", "主问题", "", "", "", "", "", ""],
+        ["L1", "", "G1", "", "1", "你家最主要的问题是？", "宠物毛发&split&灰尘&split&顽固污渍&split&其他", "不同问题对应不同清洁方案", "", ""],
+        ["L1", "", "G2", "公共信息", "", "", "", "", "", ""],
+        ["L1", "", "G2", "", "2", "你的房屋面积是？", "小于50㎡&split&50-100㎡&split&大于100㎡", "房屋面积影响清洁频率", "", ""],
+        ["L1", "", "G2", "", "3", "你家有宠物吗？", "有&split&没有", "", "", ""],
+        ["L2", "程度与偏好", "G_heavy", "严重宠物", "", "", "", "", "", ""],
+        ["L2", "", "G_heavy", "", "4", "严重程度如何？", "非常严重&split&比较严重", "", "", ""],
+        ["L2", "", "G_heavy", "", "5", "想要专业服务吗？", "专业服务&split&自己动手", "", "", ""],
+        ["L2", "", "G_light", "轻度宠物", "", "", "", "", "", ""],
+        ["L2", "", "G_light", "", "6", "想要专业服务吗？", "专业服务&split&自己动手", "", "", ""]
+      ]
+    },
+    {
+      "name": "OptionTags",
+      "headers": ["quiz_num", "question_option", "tag", "score"],
+      "rows": [
+        [1, "A", "pet_hair", 7],
+        [1, "B", "dust", 5],
+        [1, "C", "grease", 5],
+        [1, "D", "other", 1],
+        [4, "A", "wants_pro", 5],
+        [4, "B", "wants_diy", 5],
+        [5, "A", "wants_pro", 5],
+        [5, "B", "wants_diy", 5],
+        [6, "A", "wants_pro", 5],
+        [6, "B", "wants_diy", 5]
+      ]
+    },
+    {
+      "name": "Routing",
+      "headers": ["type", "from_layer_id", "tag", "target_id"],
+      "rows": [
+        ["group", "L1", "pet_hair", "G_heavy"],
+        ["result", "L1", "dust", "RP_diy_pet"],
+        ["result", "L1", "grease", "RP_pro_pet"],
+        ["group", "L1", "(DEFAULT)", "G_light"]
+      ]
+    },
+    {
+      "name": "ResultPages",
+      "headers": ["result_id", "condition", "content"],
+      "rows": [
+        ["RP_pro_pet", "L1=pet_hair&pet_hair>=7&L2=wants_pro", "严重宠物毛发+专业服务 → 推荐专业深度清洁。"],
+        ["RP_pro_pet", "L1=pet_hair&pet_hair>=7&L2=wants_diy", "严重宠物毛发+DIY → 推荐专业工具与教程。"],
+        ["RP_diy_pet", "L1=pet_hair&pet_hair<7&L2=wants_diy", "轻度宠物毛发+DIY → 自己处理指南。"],
+        ["RP_default", "*", "推荐通用清洁方案介绍。"]
+      ]
+    }
+  ]
+}

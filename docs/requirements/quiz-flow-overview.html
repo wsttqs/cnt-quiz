@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>动态 Quiz 业务流 v6</title>
+<style>
+:root {
+  --bg: #0f1729;
+  --panel: #18233d;
+  --panel-2: #1f2c47;
+  --border: #2d3a5a;
+  --border-soft: #243149;
+  --text: #f1f5fb;
+  --text-dim: #a3b1cc;
+  --text-mute: #6b7793;
+  --accent: #38bdf8;
+  --warm: #fb923c;
+  --green: #34d399;
+  --pink: #f472b6;
+  --yellow: #fbbf24;
+  --red: #f87171;
+  --purple: #a78bfa;
+}
+* { box-sizing: border-box; }
+html, body { background: var(--bg); color: var(--text); margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  padding: 36px 32px;
+  line-height: 1.6;
+  font-size: 14px;
+}
+.viz { max-width: 880px; margin: 0 auto; }
+
+.head { text-align: center; margin-bottom: 32px; }
+.title { font-size: 26px; font-weight: 700; letter-spacing: 0.5px; }
+.subtitle { color: var(--text-dim); font-size: 14px; margin-top: 8px; }
+
+/* ====== 概览条 ====== */
+.overview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 16px 20px;
+  background: var(--panel);
+  border-radius: 12px;
+  margin-bottom: 28px;
+  border: 1px solid var(--border);
+}
+.overview .step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+.overview .step strong { color: var(--text); font-weight: 600; }
+.overview .arrow { color: var(--text-mute); font-size: 16px; }
+.overview .dot {
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 13px;
+}
+.overview .dot.s1 { background: rgba(251,191,36,0.18); color: var(--yellow); }
+.overview .dot.s2 { background: rgba(56,189,248,0.18); color: var(--accent); }
+.overview .dot.sr { background: rgba(248,113,113,0.18); color: var(--red); }
+
+/* ====== Stage Cards ====== */
+.stage {
+  background: var(--panel);
+  border-radius: 14px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.stage-head {
+  padding: 16px 22px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.stage-num {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 15px;
+  flex-shrink: 0;
+}
+.stage.s1 .stage-num { background: rgba(251,191,36,0.15); color: var(--yellow); }
+.stage.s2 .stage-num { background: rgba(56,189,248,0.15); color: var(--accent); }
+.stage.sn .stage-num { background: rgba(107,119,147,0.15); color: var(--text-mute); }
+
+.stage-title { font-size: 17px; font-weight: 700; flex: 1; }
+.stage-meta {
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.05);
+  color: var(--text-mute);
+}
+
+.stage-body { padding: 20px 22px; }
+
+/* ====== Branch（每个分支） ====== */
+.branch {
+  background: var(--panel-2);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  border-left: 3px solid var(--green);
+}
+.branch:last-child { margin-bottom: 0; }
+.branch.placeholder {
+  border-left-color: var(--text-mute);
+  border-style: dashed;
+}
+.branch-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--green);
+  margin-bottom: 10px;
+}
+.branch.placeholder .branch-title { color: var(--text-mute); }
+
+/* ====== Question & Options ====== */
+.q-block { margin-bottom: 12px; }
+.q-block:last-child { margin-bottom: 0; }
+.q-text {
+  font-size: 14px;
+  color: var(--text);
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+.q-text small {
+  color: var(--text-mute);
+  font-size: 12px;
+  font-weight: 400;
+  margin-left: 6px;
+}
+.options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: 4px;
+}
+.opt {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(251,146,60,0.1);
+  color: var(--warm);
+  border: 1px solid rgba(251,146,60,0.3);
+  font-size: 13px;
+}
+.opt.neutral {
+  background: rgba(255,255,255,0.04);
+  color: var(--text-dim);
+  border-color: var(--border-soft);
+}
+
+/* ====== Transition（层间说明） ====== */
+.transition {
+  text-align: center;
+  padding: 12px;
+  margin: -4px 0;
+  color: var(--purple);
+  font-size: 13px;
+  position: relative;
+}
+.transition::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 0; bottom: 0;
+  width: 1px;
+  background: var(--border);
+}
+.transition span {
+  position: relative;
+  background: var(--bg);
+  padding: 0 14px;
+}
+.transition .why {
+  display: block;
+  font-size: 11px;
+  color: var(--text-mute);
+  margin-top: 4px;
+}
+
+/* ====== Result ====== */
+.result {
+  background: linear-gradient(135deg, rgba(248,113,113,0.08), var(--panel));
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--red);
+  border-radius: 14px;
+  padding: 18px 22px;
+  margin-top: 8px;
+}
+.result-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.result-head .icon {
+  width: 36px; height: 36px;
+  background: rgba(248,113,113,0.15);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+}
+.result-head .title { font-size: 17px; font-weight: 700; color: var(--red); }
+
+.rec-row {
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 13px;
+}
+.rec-row:last-child { margin-bottom: 0; }
+.rec-row.default {
+  border-left: 3px solid var(--yellow);
+  background: rgba(251,191,36,0.04);
+}
+.rec-tag {
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.rec-row.main .rec-tag { background: rgba(248,113,113,0.15); color: var(--red); }
+.rec-row.alt .rec-tag { background: rgba(56,189,248,0.15); color: var(--accent); }
+.rec-row.default .rec-tag { background: rgba(251,191,36,0.15); color: var(--yellow); }
+
+.rec-flow {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.rec-cond {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+.rec-arrow { color: var(--text-mute); }
+.rec-action {
+  color: var(--text);
+  font-weight: 600;
+  padding: 4px 12px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 6px;
+}
+
+/* ====== Footnote ====== */
+.footnote {
+  text-align: center;
+  margin-top: 24px;
+  padding: 14px 20px;
+  background: var(--panel);
+  border-radius: 10px;
+  font-size: 12px;
+  color: var(--text-dim);
+  border: 1px dashed var(--border);
+}
+.footnote b { color: var(--text); }
+</style>
+</head>
+<body>
+
+<div class="viz">
+  <div class="head">
+    <div class="title">动态 Quiz 业务流</div>
+    <div class="subtitle">从用户进入到给出推荐，3 步搞定</div>
+  </div>
+
+  <!-- 概览 -->
+  <div class="overview">
+    <div class="step"><span class="dot s1">1</span><strong>入门</strong>· 了解问题</div>
+    <span class="arrow">→</span>
+    <div class="step"><span class="dot s2">2</span><strong>深入</strong>· 精准推荐</div>
+    <span class="arrow">→</span>
+    <div class="step"><span class="dot sr">★</span><strong>推荐</strong>· 给方案</div>
+  </div>
+
+  <!-- ============================ -->
+  <!-- 第 1 步：入门                  -->
+  <!-- ============================ -->
+  <div class="stage s1">
+    <div class="stage-head">
+      <div class="stage-num">1</div>
+      <div class="stage-title">入门：了解你家的问题</div>
+      <div class="stage-meta">必经 · 1 组问题</div>
+    </div>
+    <div class="stage-body">
+      <div class="q-block">
+        <div class="q-text">❓ 你家最主要的问题是？</div>
+        <div class="options">
+          <span class="opt">宠物毛发</span>
+          <span class="opt">灰尘</span>
+          <span class="opt">顽固污渍</span>
+          <span class="opt">其他</span>
+        </div>
+      </div>
+      <div class="q-block">
+        <div class="q-text">📝 房屋面积大概多少？<small>（仅供参考，不影响推荐）</small></div>
+        <div class="options">
+          <span class="opt neutral">50㎡ 以下</span>
+          <span class="opt neutral">50-100㎡</span>
+          <span class="opt neutral">100㎡ 以上</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 流转说明 -->
+  <div class="transition">
+    <span>↓ 根据你的回答，进入下一步</span>
+    <span class="why">例如：选了「宠物毛发」→ 进入宠物相关分支</span>
+  </div>
+
+  <!-- ============================ -->
+  <!-- 第 2 步：深入                  -->
+  <!-- ============================ -->
+  <div class="stage s2">
+    <div class="stage-head">
+      <div class="stage-num">2</div>
+      <div class="stage-title">深入：根据你的回答，精准推荐</div>
+      <div class="stage-meta">分支 · 按需展开</div>
+    </div>
+    <div class="stage-body">
+
+      <!-- 宠物毛发分支 -->
+      <div class="branch">
+        <div class="branch-title">🐾 选了「宠物毛发」</div>
+        <div class="q-block">
+          <div class="q-text">❓ 严重程度如何？</div>
+          <div class="options">
+            <span class="opt">非常严重</span>
+            <span class="opt">一般</span>
+          </div>
+        </div>
+        <div class="q-block">
+          <div class="q-text">❓ 想找专业服务还是自己动手？</div>
+          <div class="options">
+            <span class="opt">专业服务</span>
+            <span class="opt">自己动手</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 灰尘分支 -->
+      <div class="branch">
+        <div class="branch-title">🌫 选了「灰尘」</div>
+        <div class="q-block">
+          <div class="q-text">❓ 主要在哪些房间？</div>
+          <div class="options">
+            <span class="opt">卧室</span>
+            <span class="opt">客厅</span>
+            <span class="opt">全屋</span>
+          </div>
+        </div>
+        <div class="q-block">
+          <div class="q-text">❓ 自己处理还是请人？</div>
+          <div class="options">
+            <span class="opt">自己处理</span>
+            <span class="opt">请专业人员</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 占位分支 -->
+      <div class="branch placeholder">
+        <div class="branch-title">📦 其他分支...</div>
+        <div class="q-block">
+          <div class="q-text" style="color:var(--text-mute); font-size:13px;">业务可按需配置更多分支（顽固污渍、其他等）</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- 流转说明 -->
+  <div class="transition">
+    <span>↓ 所有问题已答完 → 推荐方案</span>
+  </div>
+
+  <!-- ============================ -->
+  <!-- 第 N 步：可选更深入            -->
+  <!-- ============================ -->
+  <div class="stage sn">
+    <div class="stage-head">
+      <div class="stage-num">N</div>
+      <div class="stage-title" style="color:var(--text-mute);">…（可选）更深入的漏斗</div>
+      <div class="stage-meta">按业务需要决定要不要</div>
+    </div>
+    <div class="stage-body" style="color:var(--text-mute); font-size:13px;">
+      如果上面还不够精准，可以再加更多层（比如第 3 步、第 4 步…），结构和上面一样：每一层都是"问几个问题 → 进入下一个分支"。
+    </div>
+  </div>
+
+  <!-- 流转说明 -->
+  <div class="transition">
+    <span>↓ 累计所有回答 → 推荐</span>
+  </div>
+
+  <!-- ============================ -->
+  <!-- 推荐结果                       -->
+  <!-- ============================ -->
+  <div class="result">
+    <div class="result-head">
+      <div class="icon">💡</div>
+      <div class="title">你的专属推荐</div>
+    </div>
+
+    <div class="rec-row main">
+      <div class="rec-tag">主推</div>
+      <div class="rec-flow">
+        <span class="rec-cond">「宠物毛发 + 非常严重 + 专业服务」</span>
+        <span class="rec-arrow">→</span>
+        <span class="rec-action">专业宠物清洁服务</span>
+      </div>
+    </div>
+
+    <div class="rec-row alt">
+      <div class="rec-tag">备选</div>
+      <div class="rec-flow">
+        <span class="rec-cond">「宠物毛发 + 自己动手」</span>
+        <span class="rec-arrow">→</span>
+        <span class="rec-action">DIY 清洁指南</span>
+      </div>
+    </div>
+
+    <div class="rec-row alt">
+      <div class="rec-tag">备选</div>
+      <div class="rec-flow">
+        <span class="rec-cond">「灰尘 + 自己处理」</span>
+        <span class="rec-arrow">→</span>
+        <span class="rec-action">家用除尘教程</span>
+      </div>
+    </div>
+
+    <div class="rec-row default">
+      <div class="rec-tag">兜底</div>
+      <div class="rec-flow">
+        <span class="rec-cond">以上都不匹配</span>
+        <span class="rec-arrow">→</span>
+        <span class="rec-action">综合清洁指南</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 底部说明 -->
+  <div class="footnote">
+    💡 <b>简单说</b>：每一步用户只看到几个问题；系统根据他们的回答，精准推到下一步；最后给出最合适的方案。
+    <br>
+    业务只需要配好「每步问什么 / 怎么跳转 / 答完后给什么推荐」就行，不需要碰代码。
+  </div>
+
+</div>
+</body>
+</html>
