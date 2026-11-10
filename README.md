@@ -19,6 +19,12 @@ node web/tools/serve.js 5173
 
 详见 [`web/README.md`](web/README.md)。
 
+## 部署
+
+本项目为纯静态站点，已配置 GitHub Actions 自动发布到 GitHub Pages（发布目录 `web/`）。详见 [`DEPLOY.md`](DEPLOY.md)。
+
+上线后访问：`https://<用户名>.github.io/<仓库名>/`
+
 ## 页面预览
 
 | 页面 | 截图 |

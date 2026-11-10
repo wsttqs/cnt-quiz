@@ -9,8 +9,46 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%23f291ad'/%3E%3Ccircle cx='23' cy='28' r='8' fill='%23fff' stroke='%2322161c' stroke-width='3'/%3E%3Ccircle cx='41' cy='28' r='8' fill='%23fff' stroke='%2322161c' stroke-width='3'/%3E%3Ccircle cx='24' cy='29' r='3' fill='%2322161c'/%3E%3Ccircle cx='42' cy='29' r='3' fill='%2322161c'/%3E%3Cpath d='M24 44q8 7 16 0' stroke='%238e2f47' stroke-width='4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+<script>
+/* 站点根目录探测 + 资源注入
+   GitHub Pages 会在「请求的原路径」上返回本 404.html。若缺失路径含多级目录，
+   相对的 assets/... 与 index.html 会全部失效。这里先逐级向上探测真实站点根，
+   写入 <base> 后再由脚本注入 CSS/JS，避免浏览器预加载器按错误路径抢先请求。 */
+(function () {
+  var parts = location.pathname.split('/').filter(Boolean);
+  var chain = [];
+  for (var i = parts.length; i >= 0; i--) chain.push('/' + parts.slice(0, i).join('/') + '/');
+
+  function pick(idx) {
+    if (idx >= chain.length) return './';
+    var base = chain[idx];
+    var x = new XMLHttpRequest();
+    try {
+      x.open('GET', base + 'assets/js/common.js', false);
+      x.send(null);
+    } catch (e) { return pick(idx + 1); }
+    return (x.status === 200 || x.status === 304) ? base : pick(idx + 1);
+  }
+
+  var root = pick(0);
+  var b = document.createElement('base');
+  b.href = root;
+  document.head.appendChild(b);
+
+  var css = document.createElement('link');
+  css.rel = 'stylesheet';
+  css.href = 'assets/css/style.css';
+  document.head.appendChild(css);
+
+  ['i18n', 'art', 'data', 'common', 'effects', 'notfound'].forEach(function (n) {
+    var s = document.createElement('script');
+    s.async = false;          // 保证按顺序执行（DOM 插入的脚本默认 async）
+    s.src = 'assets/js/' + n + '.js';
+    document.head.appendChild(s);
+  });
+})();
+</script>
 </head>
 <body>
 <div id="siteHeader"></div>
@@ -18,12 +56,5 @@
 <main id="app" class="container"></main>
 <div id="siteFooter"></div>
 <div id="searchHost"></div>
-
-<script src="assets/js/i18n.js"></script>
-<script src="assets/js/art.js"></script>
-<script src="assets/js/data.js"></script>
-<script src="assets/js/common.js"></script>
-<script src="assets/js/effects.js"></script>
-<script src="assets/js/notfound.js"></script>
 </body>
 </html>
