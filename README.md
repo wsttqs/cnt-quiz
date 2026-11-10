@@ -2,6 +2,8 @@
 
 多语言趣味问答网站（静态站），参考 [vibquiz.com](https://vibquiz.com/) 的风格与结构仿制。
 
+> 🔗 **在线访问**：<https://wsttqs.github.io/cnt-quiz/>  （仓库：<https://github.com/wsttqs/cnt-quiz>）
+
 ```
 .
 ├── web/        ← 网站本体（纯静态，零依赖、零构建）
@@ -23,7 +25,9 @@ node web/tools/serve.js 5173
 
 本项目为纯静态站点，已配置 GitHub Actions 自动发布到 GitHub Pages（发布目录 `web/`）。详见 [`DEPLOY.md`](DEPLOY.md)。
 
-上线后访问：`https://<用户名>.github.io/<仓库名>/`
+**线上地址**：https://wsttqs.github.io/cnt-quiz/
+
+通用格式为 `https://<用户名>.github.io/<仓库名>/`；每次 `git push` 后 Actions 会自动重新发布，约 1 分钟生效。
 
 ## 页面预览
 

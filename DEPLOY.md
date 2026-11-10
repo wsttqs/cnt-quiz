@@ -2,6 +2,8 @@
 
 本项目为**纯静态站点**（零依赖、零构建），仓库根目录即源码仓库，发布内容为 `web/` 目录。
 
+**当前线上地址**：https://wsttqs.github.io/cnt-quiz/
+
 ## 一、发布产物
 
 | 路径 | 说明 |
@@ -16,7 +18,11 @@
 2. 推送本仓库代码（如：`git push`）
 3. 工作流已配置 `enablement: true`，**首次 push 会自动开启 Pages**，无需手动设置
    - 若提示未自动开启：进入 **Settings → Pages → Build and deployment → Source 选 GitHub Actions**
-4. Actions 跑完（约 1 分钟）后访问 `https://<用户名>.github.io/<仓库名>/`
+4. Actions 跑完（约 1 分钟）后访问 `https://wsttqs.github.io/<仓库名>/`
+
+> ⚠️ **首次推送的常见报错**：如果第 1 次工作流停在 `Configure Pages` 步骤失败，说明仓库里还没有 Pages 站点实例。
+> 解决：进入 **Settings → Pages → Build and deployment → Source 选 `GitHub Actions`** 手动开启一次，
+> 再回到 **Actions** 页面点 `Deploy to GitHub Pages` 工作流的 **Re-run all jobs**，约 1 分钟即可发布成功。
 
 ## 三、后续更新
 
